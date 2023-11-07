@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from googlesearch import search
+import time
 
 
 # pip install openpyxl, google
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         # "https://texub.com",
         # "https://gear-up.me"
     ]
-    df = pd.read_excel("./TopSKU.xlsx")
+    df = pd.read_csv("./TopSKU.csv")
     print(df)
     for url in urls:
         extract_df = {"EAN/BARCODE": [], "PRICE WITH CURRENCY": [], "PRODUCT_LINK": []}
@@ -88,8 +89,9 @@ if __name__ == "__main__":
             # query = f'USW-Pro-24-POE site:https://www.getic.com/'
             query = f'{product} {url}'
             print(query)
+            time.sleep(0.1)
             product_url = get_product_link(query)
-            print("product:" + product_url)
+            print("product:",  product_url)
             if product_url:
                 page = requests.get(product_url)
                 soup = BeautifulSoup(page.content, "html.parser")
