@@ -54,34 +54,36 @@ def get_productName(soup):
 
 def get_ean_price(soup, url):
     if "getic" in url:
-        ean_number = soup.find('div', class_='section-cell product-ean order-4')
-        ean_number_1 = ean_number.find('div', {'class': 'cell-content-value'}).text
-        print(ean_number_1)
+        ean_number_soup = soup.find('div', class_='section-cell product-ean order-4')
+        ean_number = ean_number_soup.find('div', {'class': 'cell-content-value'}).text
 
-        # currency = soup.find_all('span', class_="product-price-currency")[0]
-        # currency_symbol = currency.get_text().strip()
-        # amount = soup.find_all('span', class_="product-price-value")[0]
-        # amount_value = amount.get_text().strip()
-        # # price = currency_symbol + ' ' + amount_value
-        # price= "$ 150"
-        return ean_number_1
+        currency = soup.find(class_="product-price-currency").text
+        value = soup.find(class_="product-price-value").text
+
+        # Concatenate currency and value
+        price = currency + value
+        return ean_number, price
+
     # elif "microless" in url:
     #     ean_number = soup.find_all('div', class_='section-cell product-ean order-4')
     #     ean_number = ean_number.find('div', {'class': 'cell-content-value'}).text
     #     return "to do"
     # elif "hubx"
+    else:
+        return "N/A",'N/A'
 
 
 if __name__ == "__main__":
 
     urls = [
         "https://www.getic.com/product/",
-        # "https://uae.geticmicroless.com",
+        # "https://uae.microless.com",
         # "https://hubx.com",
         # "https://texub.com",
         # "https://gear-up.me"
     ]
     df = pd.read_csv("./TopSKU.csv")
+    df_list = []
     print(df)
     for url in urls:
         extract_df = {"EAN/BARCODE": [], "PRICE WITH CURRENCY": [], "PRODUCT_LINK": []}
@@ -89,16 +91,22 @@ if __name__ == "__main__":
             # query = f'USW-Pro-24-POE site:https://www.getic.com/'
             query = f'{product} {url}'
             print(query)
-            time.sleep(0.1)
+            # time.sleep(0.1)
             product_url = get_product_link(query)
             print("product:",  product_url)
             if product_url:
                 page = requests.get(product_url)
                 soup = BeautifulSoup(page.content, "html.parser")
-                ean = get_ean_price(soup, url)
-            #     extract_df['EAN/BARCODE'].append(ean)
-            #     extract_df['PRICE WITH CURRENCY'].append(price)
-            #     extract_df['PRODUCT_LINK'].append(product_url)
+                ean,price = get_ean_price(soup, product_url)
+                if ean is None:
+                    extract_df['EAN/BARCODE'].append('N/A')
+                    extract_df['PRICE WITH CURRENCY'].append('N/A')
+                    extract_df['PRODUCT_LINK'].append('N/A')
+                    continue
+                print(ean,price)
+                extract_df['EAN/BARCODE'].append(ean)
+                extract_df['PRICE WITH CURRENCY'].append(price)
+                extract_df['PRODUCT_LINK'].append(product_url)
             # else:
             #     for product1 in df['ITEM NAME']:
             #         # query = f'USW-Pro-24-POE site:https://www.getic.com/'
@@ -110,19 +118,22 @@ if __name__ == "__main__":
             #         soup = BeautifulSoup(page.content, "html.parser")
             #         ean = get_ean_price(soup, url)
 
-            # else:
-            #     extract_df['EAN/BARCODE'].append('N/A')
-            #     extract_df['PRICE WITH CURRENCY'].append('N/A')
-            #     extract_df['PRODUCT_LINK'].append('N/A')
+            else:
+                extract_df['EAN/BARCODE'].append('N/A')
+                extract_df['PRICE WITH CURRENCY'].append('N/A')
+                extract_df['PRODUCT_LINK'].append('N/A')
 
-        # globals()[site] = pd.concat([df, pd.DataFrame.from_dict(extract_df)], axis=1)
-        # df_list.append(pd.concat([df, pd.DataFrame.from_dict(extract_df)]))
+        # globals()[url] = pd.concat([df, pd.DataFrame.from_dict(extract_df)], axis=1)
+        concatenated_df = pd.concat([df, pd.DataFrame.from_dict(extract_df)], axis=1, ignore_index=True)
 
-    # with pd.ExcelWriter('C:/Users/LENOVO/Downloads/TLM/output.xlsx', engine='openpyxl') as writer:
-    #     for df, sheet_name in zip(df_list, urls):
-    #         url = url.replace('-', '_')
-    #         site = url.split('/')[2]
-    #         df.to_excel(writer, sheet_name=site, index=False)
+        # Append the concatenated DataFrame to the df_list
+        df_list.append(concatenated_df)
+
+    with pd.ExcelWriter('output.xlsx', engine='openpyxl') as writer:
+        for df, url in zip(df_list, urls):
+            url = url.replace('-', '_')
+            site = url.split('/')[2]
+            df.to_excel(writer, sheet_name=site, index=True)
 
     # with pd.ExcelWriter('output.xlsx', engine='openpyxl') as writer:
     #     df1.to_excel(writer, sheet_name='Sheet1', index=False)
